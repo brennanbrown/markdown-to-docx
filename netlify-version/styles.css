@@ -1,0 +1,109 @@
+/* Custom CSS for Markdown to DOCX Converter */
+
+/* Custom gradient and brand colors */
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --primary-color: #667eea;
+    --secondary-color: #764ba2;
+    --accent-color: #f8f9ff;
+    --success-color: #28a745;
+    --error-color: #dc3545;
+}
+
+/* Custom gradient backgrounds */
+.bg-gradient-primary {
+    background: var(--primary-gradient);
+}
+
+.text-gradient {
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Upload area styles */
+.upload-area {
+    border: 3px dashed #e5e7eb;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-area:hover {
+    border-color: var(--primary-color);
+    background-color: var(--accent-color);
+}
+
+.upload-area.dragover {
+    border-color: var(--primary-color);
+    background-color: #f0f4ff;
+    transform: scale(1.02);
+}
+
+/* Button styles */
+.btn-primary {
+    background: var(--primary-gradient);
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Progress bar styles */
+.progress-fill {
+    background: var(--primary-gradient);
+    transition: width 0.3s ease;
+}
+
+/* Success and error states */
+.success {
+    color: var(--success-color);
+}
+
+.error {
+    color: var(--error-color);
+}
+
+/* Footer link styles */
+.footer-link {
+    color: var(--primary-color);
+    transition: color 0.3s ease;
+}
+
+.footer-link:hover {
+    color: var(--secondary-color);
+}
+
+/* Feature card animations */
+.feature-card {
+    transition: transform 0.2s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Custom shadows */
+.shadow-brand {
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+
+/* Mobile responsiveness improvements */
+@media (max-width: 640px) {
+    .upload-area {
+        padding: 2rem 1rem;
+    }
+    
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+}
