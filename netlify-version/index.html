@@ -328,8 +328,7 @@
 
     <!-- JavaScript Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.6/dist/pizzip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.42.3/build/docxtemplater.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 
     <script>
@@ -464,43 +463,24 @@
             // Convert markdown to HTML
             const html = marked.parse(markdownText);
             
-            // Create a simple DOCX document
-            const doc = new docxtemplater.PizZip();
-            
-            // Create a basic DOCX structure with the HTML content
-            // Note: This is a simplified conversion - for full HTML support, 
-            // you'd need a more sophisticated library
+            // Convert HTML to simple Word XML
             const docContent = convertHtmlToWordML(html);
             
-            // Create minimal DOCX structure
-            const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-<w:body>
-${docContent}
-</w:body>
-</w:document>`;
+            // Create DOCX package using JSZip
+            const zip = new JSZip();
             
-            // Create DOCX package
-            const zip = new PizZip();
-            
-            // Add required files
-            zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-<Default Extension="xml" ContentType="application/xml"/>
-<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-</Types>`);
-            
-            zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`);
-            
-            zip.file('word/document.xml', docXml);
+            // Add required DOCX structure files
+            zip.file('[Content_Types].xml', getContentTypesXml());
+            zip.file('_rels/.rels', getRelsXml());
+            zip.file('word/_rels/document.xml.rels', getDocumentRelsXml());
+            zip.file('word/styles.xml', getStylesXml());
+            zip.file('word/document.xml', getDocumentXml(docContent));
             
             // Generate blob
-            const content = zip.generate({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
-            return content;
+            return await zip.generateAsync({
+                type: "blob", 
+                mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            });
         }
         
         function convertHtmlToWordML(html) {
@@ -533,6 +513,86 @@ ${docContent}
         
         function downloadFile(blob, fileName) {
             saveAs(blob, fileName);
+        }
+        
+        // DOCX structure helper functions
+        function getContentTypesXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+    <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+    <Default Extension="xml" ContentType="application/xml"/>
+    <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+    <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`;
+        }
+        
+        function getRelsXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+        }
+        
+        function getDocumentRelsXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+        }
+        
+        function getStylesXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+    <w:style w:type="paragraph" w:styleId="Normal">
+        <w:name w:val="Normal"/>
+        <w:qFormat/>
+        <w:pPr>
+            <w:spacing w:after="120"/>
+        </w:pPr>
+    </w:style>
+    <w:style w:type="paragraph" w:styleId="Heading1">
+        <w:name w:val="heading 1"/>
+        <w:basedOn w:val="Normal"/>
+        <w:pPr>
+            <w:spacing w:before="240" w:after="120"/>
+        </w:pPr>
+        <w:rPr>
+            <w:b/>
+            <w:sz w:val="32"/>
+        </w:rPr>
+    </w:style>
+    <w:style w:type="paragraph" w:styleId="Heading2">
+        <w:name w:val="heading 2"/>
+        <w:basedOn w:val="Normal"/>
+        <w:pPr>
+            <w:spacing w:before="200" w:after="120"/>
+        </w:pPr>
+        <w:rPr>
+            <w:b/>
+            <w:sz w:val="26"/>
+        </w:rPr>
+    </w:style>
+    <w:style w:type="paragraph" w:styleId="Heading3">
+        <w:name w:val="heading 3"/>
+        <w:basedOn w:val="Normal"/>
+        <w:pPr>
+            <w:spacing w:before="160" w:after="120"/>
+        </w:pPr>
+        <w:rPr>
+            <w:b/>
+            <w:sz w:val="24"/>
+        </w:rPr>
+    </w:style>
+</w:styles>`;
+        }
+        
+        function getDocumentXml(content) {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+    <w:body>
+        ${content}
+    </w:body>
+</w:document>`;
         }
         
         function resetForm() {
