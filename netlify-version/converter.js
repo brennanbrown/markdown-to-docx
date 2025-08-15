@@ -161,12 +161,7 @@ class MarkdownConverter {
     }
 
     async convertMarkdownToDocx(markdownText, fileName) {
-        // Debug: Let's see what the tokens contain
-        console.log('DEBUG: Raw markdown text:', markdownText);
-        const testTokens = marked.lexer(markdownText);
-        console.log('DEBUG: Tokens from marked.lexer:', testTokens);
-        
-        // Convert markdown directly to Word XML (skip HTML conversion)
+        // Convert markdown directly to Word XML using our custom parser
         const docContent = this.convertHtmlToWordML('');
         
         // Create DOCX package using JSZip
@@ -188,11 +183,90 @@ class MarkdownConverter {
     }
 
     convertHtmlToWordML(html) {
-        // Enhanced HTML to WordML conversion that preserves formatting
+        // Skip marked.js entirely - it's escaping our quotes and apostrophes!
+        // Use our own simple markdown parser instead
+        return this.parseMarkdownDirectly(this.currentMarkdownText || '');
+    }
+
+    parseMarkdownDirectly(markdownText) {
+        const lines = markdownText.split('\n');
+        let wordML = '';
+        let i = 0;
         
-        // Step 1: Parse the markdown tokens directly for better control
-        const tokens = marked.lexer(this.currentMarkdownText || '');
-        return this.processTokensToWordML(tokens);
+        while (i < lines.length) {
+            const line = lines[i].trim();
+            
+            if (!line) {
+                // Empty line - skip
+                i++;
+                continue;
+            }
+            
+            // Check for headings
+            if (line.match(/^#{1,6}\s/)) {
+                const level = line.match(/^(#{1,6})/)[1].length;
+                const text = line.replace(/^#{1,6}\s*/, '');
+                const headingStyle = `Heading${Math.min(level, 6)}`;
+                const cleanText = this.cleanTextForWord(text);
+                wordML += `<w:p><w:pPr><w:pStyle w:val="${headingStyle}"/></w:pPr><w:r><w:t xml:space="preserve">${cleanText}</w:t></w:r></w:p>`;
+            }
+            // Check for blockquotes
+            else if (line.startsWith('>')) {
+                const text = line.replace(/^>\s*/, '');
+                const cleanText = this.cleanTextForWord(text);
+                wordML += `<w:p><w:pPr><w:pStyle w:val="Quote"/><w:ind w:left="720"/></w:pPr><w:r><w:t xml:space="preserve">${cleanText}</w:t></w:r></w:p>`;
+            }
+            // Check for horizontal rules
+            else if (line.match(/^-{3,}$/)) {
+                wordML += '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="auto"/></w:pBdr></w:pPr><w:r><w:t></w:t></w:r></w:p>';
+            }
+            // Check for unordered lists
+            else if (line.match(/^[-*+]\s/)) {
+                const text = line.replace(/^[-*+]\s*/, '');
+                const formattedText = this.parseInlineMarkdown(text);
+                wordML += `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr>${formattedText}</w:p>`;
+            }
+            // Check for ordered lists
+            else if (line.match(/^\d+\.\s/)) {
+                const text = line.replace(/^\d+\.\s*/, '');
+                const formattedText = this.parseInlineMarkdown(text);
+                wordML += `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>${formattedText}</w:p>`;
+            }
+            // Check for code blocks
+            else if (line.startsWith('```')) {
+                // Find the end of the code block
+                i++; // Skip the opening ```
+                let codeContent = '';
+                while (i < lines.length && !lines[i].trim().startsWith('```')) {
+                    const codeLine = lines[i];
+                    const cleanCodeLine = this.cleanTextForWord(codeLine);
+                    codeContent += `<w:p><w:pPr><w:pStyle w:val="Code"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${cleanCodeLine}</w:t></w:r></w:p>`;
+                    i++;
+                }
+                wordML += codeContent;
+                // Skip the closing ```
+                if (i < lines.length) i++;
+                continue;
+            }
+            // Regular paragraph
+            else {
+                const formattedText = this.parseInlineMarkdown(line);
+                wordML += `<w:p><w:pPr></w:pPr>${formattedText}</w:p>`;
+            }
+            
+            i++;
+        }
+        
+        return wordML || '<w:p><w:r><w:t></w:t></w:r></w:p>';
+    }
+
+    cleanTextForWord(text) {
+        // Only escape XML-critical characters, preserve quotes and apostrophes
+        if (!text) return '';
+        if (text.includes(']]>')) {
+            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+        return `<![CDATA[${text}]]>`;
     }
 
     processTokensToWordML(tokens) {
@@ -477,17 +551,9 @@ class MarkdownConverter {
         }
         
         const rPrTag = rPr ? `<w:rPr>${rPr}</w:rPr>` : '';
+        const cleanText = this.cleanTextForWord(text);
         
-        // Use CDATA to preserve quotes and apostrophes exactly as they are
-        // Only escape if the text contains ]]> which would break CDATA
-        if (text.includes(']]>')) {
-            // Fallback to minimal escaping for problematic content
-            const cleanText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            return `<w:r>${rPrTag}<w:t xml:space="preserve">${cleanText}</w:t></w:r>`;
-        } else {
-            // Use CDATA to preserve all characters including quotes and apostrophes
-            return `<w:r>${rPrTag}<w:t xml:space="preserve"><![CDATA[${text}]]></w:t></w:r>`;
-        }
+        return `<w:r>${rPrTag}<w:t xml:space="preserve">${cleanText}</w:t></w:r>`;
     }
 
     escapeXml(text) {
