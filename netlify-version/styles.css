@@ -58,6 +58,17 @@
     box-shadow: none;
 }
 
+.btn-secondary {
+    background: #10b981;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+}
+
 /* Progress bar styles */
 .progress-fill {
     background: var(--primary-gradient);

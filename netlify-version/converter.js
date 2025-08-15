@@ -92,6 +92,9 @@ class MarkdownConverter {
                 // Read file content
                 const text = await this.readFileAsText(file);
                 
+                // Store the markdown text for conversion
+                this.currentMarkdownText = text;
+                
                 // Convert markdown to DOCX
                 const docxBlob = await this.convertMarkdownToDocx(text, file.name);
                 
@@ -131,7 +134,21 @@ class MarkdownConverter {
         document.getElementById('results').classList.remove('hidden');
         document.getElementById('downloadSection').classList.remove('hidden');
         document.getElementById('progressText').textContent = `Completed! ${successCount} files converted successfully`;
-        document.getElementById('convertBtn').disabled = false;
+        
+        // Update convert button to show "Convert Another File"
+        const convertBtn = document.getElementById('convertBtn');
+        convertBtn.disabled = false;
+        convertBtn.textContent = 'Convert Another File';
+        convertBtn.classList.add('btn-secondary');
+        convertBtn.classList.remove('btn-primary');
+        
+        // Auto-reset after a short delay to make it ready for next conversion
+        setTimeout(() => {
+            this.resetForm();
+            convertBtn.textContent = 'Convert Files';
+            convertBtn.classList.add('btn-primary');
+            convertBtn.classList.remove('btn-secondary');
+        }, 3000);
     }
 
     readFileAsText(file) {
@@ -158,6 +175,7 @@ class MarkdownConverter {
         zip.file('_rels/.rels', DocxStructure.getRelsXml());
         zip.file('word/_rels/document.xml.rels', DocxStructure.getDocumentRelsXml());
         zip.file('word/styles.xml', DocxStructure.getStylesXml());
+        zip.file('word/numbering.xml', DocxStructure.getNumberingXml());
         zip.file('word/document.xml', DocxStructure.getDocumentXml(docContent));
         
         // Generate blob
@@ -168,30 +186,148 @@ class MarkdownConverter {
     }
 
     convertHtmlToWordML(html) {
-        // Simple HTML to WordML conversion
-        let wordML = html;
+        // Enhanced HTML to WordML conversion that preserves formatting
         
-        // Convert basic HTML tags to WordML
-        wordML = wordML.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>$1</w:t></w:r></w:p>');
-        wordML = wordML.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>$1</w:t></w:r></w:p>');
-        wordML = wordML.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '<w:p><w:pPr><w:pStyle w:val="Heading3"/></w:pPr><w:r><w:t>$1</w:t></w:r></w:p>');
-        wordML = wordML.replace(/<p[^>]*>(.*?)<\/p>/gi, '<w:p><w:r><w:t>$1</w:t></w:r></w:p>');
-        wordML = wordML.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '<w:r><w:rPr><w:b/></w:rPr><w:t>$1</w:t></w:r>');
-        wordML = wordML.replace(/<b[^>]*>(.*?)<\/b>/gi, '<w:r><w:rPr><w:b/></w:rPr><w:t>$1</w:t></w:r>');
-        wordML = wordML.replace(/<em[^>]*>(.*?)<\/em>/gi, '<w:r><w:rPr><w:i/></w:rPr><w:t>$1</w:t></w:r>');
-        wordML = wordML.replace(/<i[^>]*>(.*?)<\/i>/gi, '<w:r><w:rPr><w:i/></w:rPr><w:t>$1</w:t></w:r>');
-        wordML = wordML.replace(/<br\s*\/?>/gi, '<w:br/>');
+        // Step 1: Parse the markdown tokens directly for better control
+        const tokens = marked.lexer(this.currentMarkdownText || '');
+        return this.processTokensToWordML(tokens);
+    }
+
+    processTokensToWordML(tokens) {
+        let wordML = '';
         
-        // Remove remaining HTML tags and decode entities
-        wordML = wordML.replace(/<[^>]+>/g, '');
-        wordML = wordML.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+        for (const token of tokens) {
+            switch (token.type) {
+                case 'heading':
+                    const headingLevel = Math.min(token.depth, 6); // Limit to H6
+                    const headingStyle = `Heading${headingLevel}`;
+                    wordML += `<w:p><w:pPr><w:pStyle w:val="${headingStyle}"/></w:pPr><w:r><w:t>${this.escapeXml(token.text)}</w:t></w:r></w:p>`;
+                    break;
+                    
+                case 'paragraph':
+                    wordML += this.processParagraphToken(token);
+                    break;
+                    
+                case 'list':
+                    wordML += this.processListToken(token);
+                    break;
+                    
+                case 'blockquote':
+                    wordML += `<w:p><w:pPr><w:pStyle w:val="Quote"/><w:ind w:left="720"/></w:pPr><w:r><w:t>${this.escapeXml(token.text)}</w:t></w:r></w:p>`;
+                    break;
+                    
+                case 'code':
+                    // Code block
+                    const codeLines = token.text.split('\n');
+                    for (const line of codeLines) {
+                        wordML += `<w:p><w:pPr><w:pStyle w:val="Code"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${this.escapeXml(line)}</w:t></w:r></w:p>`;
+                    }
+                    break;
+                    
+                case 'space':
+                    // Add line break for spaces
+                    wordML += '<w:p><w:r><w:t></w:t></w:r></w:p>';
+                    break;
+                    
+                case 'hr':
+                    // Horizontal rule
+                    wordML += '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="auto"/></w:pBdr></w:pPr><w:r><w:t></w:t></w:r></w:p>';
+                    break;
+                    
+                default:
+                    if (token.text) {
+                        wordML += `<w:p><w:r><w:t>${this.escapeXml(token.text)}</w:t></w:r></w:p>`;
+                    }
+            }
+        }
         
-        // Wrap in paragraph if no paragraphs found
-        if (!wordML.includes('<w:p>')) {
-            wordML = `<w:p><w:r><w:t>${wordML}</w:t></w:r></w:p>`;
+        return wordML || '<w:p><w:r><w:t></w:t></w:r></w:p>'; // Ensure at least one paragraph
+    }
+
+    processParagraphToken(token) {
+        // Process paragraph with inline formatting
+        if (token.tokens && token.tokens.length > 0) {
+            let runs = '';
+            for (const inlineToken of token.tokens) {
+                runs += this.processInlineToken(inlineToken);
+            }
+            return `<w:p><w:pPr></w:pPr>${runs}</w:p>`;
+        } else {
+            // Simple text paragraph
+            return `<w:p><w:r><w:t>${this.escapeXml(token.text || '')}</w:t></w:r></w:p>`;
+        }
+    }
+
+    processInlineToken(token) {
+        switch (token.type) {
+            case 'text':
+                return `<w:r><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                
+            case 'strong':
+                return `<w:r><w:rPr><w:b/></w:rPr><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                
+            case 'em':
+                return `<w:r><w:rPr><w:i/></w:rPr><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                
+            case 'codespan':
+                return `<w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:shd w:val="clear" w:color="auto" w:fill="F5F5F5"/></w:rPr><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                
+            case 'del':
+                return `<w:r><w:rPr><w:strike/></w:rPr><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                
+            case 'link':
+                return `<w:r><w:rPr><w:color w:val="0000FF"/><w:u w:val="single"/></w:rPr><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                
+            case 'br':
+                return '<w:r><w:br/></w:r>';
+                
+            default:
+                return `<w:r><w:t>${this.escapeXml(token.text || '')}</w:t></w:r>`;
+        }
+    }
+
+    processListToken(token) {
+        let wordML = '';
+        const isOrdered = token.ordered;
+        const numId = isOrdered ? 1 : 2; // 1 for ordered, 2 for unordered
+        
+        for (let i = 0; i < token.items.length; i++) {
+            const item = token.items[i];
+            let itemText = '';
+            
+            if (item.tokens) {
+                for (const itemToken of item.tokens) {
+                    if (itemToken.type === 'text') {
+                        itemText += this.escapeXml(itemToken.text);
+                    } else if (itemToken.type === 'paragraph' && itemToken.tokens) {
+                        for (const inlineToken of itemToken.tokens) {
+                            if (inlineToken.type === 'text') {
+                                itemText += this.escapeXml(inlineToken.text);
+                            } else if (inlineToken.type === 'strong') {
+                                itemText += this.escapeXml(inlineToken.text); // Could add bold formatting here
+                            } else if (inlineToken.type === 'em') {
+                                itemText += this.escapeXml(inlineToken.text); // Could add italic formatting here
+                            }
+                        }
+                    }
+                }
+            } else {
+                itemText = this.escapeXml(item.text || '');
+            }
+            
+            wordML += `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="${numId}"/></w:numPr></w:pPr><w:r><w:t>${itemText}</w:t></w:r></w:p>`;
         }
         
         return wordML;
+    }
+
+    escapeXml(text) {
+        if (!text) return '';
+        return text.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&apos;');
     }
 
     downloadFile(blob, fileName) {
