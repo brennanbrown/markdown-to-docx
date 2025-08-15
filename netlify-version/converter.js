@@ -252,9 +252,12 @@ class MarkdownConverter {
                 runs += this.processInlineToken(inlineToken);
             }
             return `<w:p><w:pPr></w:pPr>${runs}</w:p>`;
+        } else if (token.text) {
+            // Parse the raw text for inline markdown if tokens aren't available
+            return `<w:p><w:pPr></w:pPr>${this.parseInlineMarkdown(token.text)}</w:p>`;
         } else {
-            // Simple text paragraph
-            return `<w:p><w:r><w:t>${this.escapeXml(token.text || '')}</w:t></w:r></w:p>`;
+            // Empty paragraph
+            return `<w:p><w:r><w:t></w:t></w:r></w:p>`;
         }
     }
 
@@ -293,32 +296,164 @@ class MarkdownConverter {
         
         for (let i = 0; i < token.items.length; i++) {
             const item = token.items[i];
-            let itemText = '';
+            let itemRuns = '';
             
             if (item.tokens) {
                 for (const itemToken of item.tokens) {
                     if (itemToken.type === 'text') {
-                        itemText += this.escapeXml(itemToken.text);
-                    } else if (itemToken.type === 'paragraph' && itemToken.tokens) {
-                        for (const inlineToken of itemToken.tokens) {
-                            if (inlineToken.type === 'text') {
-                                itemText += this.escapeXml(inlineToken.text);
-                            } else if (inlineToken.type === 'strong') {
-                                itemText += this.escapeXml(inlineToken.text); // Could add bold formatting here
-                            } else if (inlineToken.type === 'em') {
-                                itemText += this.escapeXml(inlineToken.text); // Could add italic formatting here
+                        itemRuns += this.parseInlineMarkdown(itemToken.text);
+                    } else if (itemToken.type === 'paragraph') {
+                        if (itemToken.tokens) {
+                            for (const inlineToken of itemToken.tokens) {
+                                itemRuns += this.processInlineToken(inlineToken);
                             }
+                        } else if (itemToken.text) {
+                            itemRuns += this.parseInlineMarkdown(itemToken.text);
                         }
                     }
                 }
-            } else {
-                itemText = this.escapeXml(item.text || '');
+            } else if (item.text) {
+                itemRuns = this.parseInlineMarkdown(item.text);
             }
             
-            wordML += `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="${numId}"/></w:numPr></w:pPr><w:r><w:t>${itemText}</w:t></w:r></w:p>`;
+            // Ensure we have at least an empty run
+            if (!itemRuns) {
+                itemRuns = '<w:r><w:t></w:t></w:r>';
+            }
+            
+            wordML += `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="${numId}"/></w:numPr></w:pPr>${itemRuns}</w:p>`;
         }
         
         return wordML;
+    }
+
+    parseInlineMarkdown(text) {
+        if (!text) return '<w:r><w:t></w:t></w:r>';
+        
+        // Split text into segments, processing markdown formatting
+        const segments = this.parseMarkdownSegments(text);
+        let result = '';
+        
+        for (const segment of segments) {
+            result += this.createRun(segment.text, segment.formatting);
+        }
+        
+        return result || '<w:r><w:t></w:t></w:r>';
+    }
+
+    parseMarkdownSegments(text) {
+        const segments = [];
+        let currentIndex = 0;
+        
+        // Define patterns for different markdown syntax
+        const patterns = [
+            { regex: /\*\*\*(.+?)\*\*\*/g, formatting: { bold: true, italic: true } }, // Bold + Italic
+            { regex: /\*\*(.+?)\*\*/g, formatting: { bold: true } },                    // Bold
+            { regex: /\*(.+?)\*/g, formatting: { italic: true } },                      // Italic
+            { regex: /___(.+?)___/g, formatting: { bold: true, italic: true } },        // Bold + Italic (alt)
+            { regex: /__(.+?)__/g, formatting: { bold: true } },                        // Bold (alt)
+            { regex: /_(.+?)_/g, formatting: { italic: true } },                        // Italic (alt)
+            { regex: /~~(.+?)~~/g, formatting: { strikethrough: true } },               // Strikethrough
+            { regex: /`(.+?)`/g, formatting: { code: true } },                          // Inline code
+            { regex: /\[([^\]]+)\]\(([^)]+)\)/g, formatting: { link: true } }           // Links
+        ];
+        
+        // Find all matches
+        const matches = [];
+        for (const pattern of patterns) {
+            let match;
+            pattern.regex.lastIndex = 0; // Reset regex
+            while ((match = pattern.regex.exec(text)) !== null) {
+                matches.push({
+                    start: match.index,
+                    end: match.index + match[0].length,
+                    text: match[1], // Captured group (content without markdown syntax)
+                    fullMatch: match[0],
+                    formatting: pattern.formatting,
+                    linkUrl: pattern.formatting.link ? match[2] : null
+                });
+            }
+        }
+        
+        // Sort matches by position
+        matches.sort((a, b) => a.start - b.start);
+        
+        // Remove overlapping matches (keep the first one)
+        const filteredMatches = [];
+        for (const match of matches) {
+            const overlaps = filteredMatches.some(existing => 
+                (match.start < existing.end && match.end > existing.start)
+            );
+            if (!overlaps) {
+                filteredMatches.push(match);
+            }
+        }
+        
+        // Build segments
+        let lastEnd = 0;
+        for (const match of filteredMatches) {
+            // Add plain text before this match
+            if (match.start > lastEnd) {
+                const plainText = text.substring(lastEnd, match.start);
+                if (plainText) {
+                    segments.push({ text: plainText, formatting: {} });
+                }
+            }
+            
+            // Add formatted text
+            segments.push({ 
+                text: match.text, 
+                formatting: match.formatting,
+                linkUrl: match.linkUrl
+            });
+            
+            lastEnd = match.end;
+        }
+        
+        // Add remaining plain text
+        if (lastEnd < text.length) {
+            const remainingText = text.substring(lastEnd);
+            if (remainingText) {
+                segments.push({ text: remainingText, formatting: {} });
+            }
+        }
+        
+        // If no matches found, return the entire text as plain
+        if (segments.length === 0) {
+            segments.push({ text: text, formatting: {} });
+        }
+        
+        return segments;
+    }
+
+    createRun(text, formatting = {}) {
+        if (!text) return '';
+        
+        let rPr = '';
+        
+        // Apply formatting
+        if (formatting.bold) {
+            rPr += '<w:b/>';
+        }
+        if (formatting.italic) {
+            rPr += '<w:i/>';
+        }
+        if (formatting.strikethrough) {
+            rPr += '<w:strike/>';
+        }
+        if (formatting.code) {
+            rPr += '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>';
+            rPr += '<w:shd w:val="clear" w:color="auto" w:fill="F5F5F5"/>';
+        }
+        if (formatting.link) {
+            rPr += '<w:color w:val="0000FF"/>';
+            rPr += '<w:u w:val="single"/>';
+        }
+        
+        const rPrTag = rPr ? `<w:rPr>${rPr}</w:rPr>` : '';
+        const escapedText = this.escapeXml(text);
+        
+        return `<w:r>${rPrTag}<w:t>${escapedText}</w:t></w:r>`;
     }
 
     escapeXml(text) {
