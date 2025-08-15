@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Markdown to DOCX Converter</title>
+    <style>
+        /* Same CSS as before but with enhanced styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .version-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 60px 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="version-badge">ADVANCED VERSION</div>
+            <h1>📄➡️📘 Markdown to DOCX</h1>
+            <p>Enhanced converter with better formatting support</p>
+        </div>
+        
+        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            <div style="font-size: 3em; margin-bottom: 20px; color: #667eea;">☁️</div>
+            <div style="font-size: 1.3em; color: #333; margin-bottom: 10px;">Click to select markdown files</div>
+            <div style="color: #666;">Enhanced conversion with better formatting preservation</div>
+        </div>
+        
+        <input type="file" id="fileInput" multiple accept=".md" style="display: none;">
+        
+        <div style="text-align: center;">
+            <button id="convertBtn" class="btn" onclick="startConversion()" disabled>Convert Files</button>
+        </div>
+        
+        <div id="results" style="display: none; margin-top: 30px;"></div>
+    </div>
+
+    <!-- Enhanced JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+    <script>
+        let selectedFiles = [];
+        
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            selectedFiles = Array.from(e.target.files);
+            document.getElementById('convertBtn').disabled = selectedFiles.length === 0;
+        });
+        
+        async function startConversion() {
+            if (selectedFiles.length === 0) return;
+            
+            const results = document.getElementById('results');
+            results.style.display = 'block';
+            results.innerHTML = '<h3>Converting files...</h3>';
+            
+            for (const file of selectedFiles) {
+                try {
+                    const text = await readFileAsText(file);
+                    const docxBlob = await convertToAdvancedDocx(text, file.name);
+                    const fileName = file.name.replace('.md', '.docx');
+                    saveAs(docxBlob, fileName);
+                    
+                    results.innerHTML += `<p>✅ ${file.name} → ${fileName}</p>`;
+                } catch (error) {
+                    results.innerHTML += `<p>❌ ${file.name} - Error: ${error.message}</p>`;
+                }
+            }
+            
+            results.innerHTML += '<p><strong>🎉 Conversion complete!</strong></p>';
+        }
+        
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+        
+        async function convertToAdvancedDocx(markdown, fileName) {
+            // Enhanced markdown processing
+            const tokens = marked.lexer(markdown);
+            const wordmlContent = await processTokensToWordML(tokens);
+            
+            return createDocxFromWordML(wordmlContent);
+        }
+        
+        async function processTokensToWordML(tokens) {
+            let wordml = '';
+            
+            for (const token of tokens) {
+                switch (token.type) {
+                    case 'heading':
+                        const headingStyle = `Heading${token.depth}`;
+                        wordml += `<w:p><w:pPr><w:pStyle w:val="${headingStyle}"/></w:pPr><w:r><w:t>${escapeXml(token.text)}</w:t></w:r></w:p>`;
+                        break;
+                        
+                    case 'paragraph':
+                        wordml += `<w:p><w:r><w:t>${processInlineFormatting(token.text)}</w:t></w:r></w:p>`;
+                        break;
+                        
+                    case 'list':
+                        wordml += processListToWordML(token);
+                        break;
+                        
+                    case 'blockquote':
+                        wordml += `<w:p><w:pPr><w:pStyle w:val="Quote"/></w:pPr><w:r><w:t>${escapeXml(token.text)}</w:t></w:r></w:p>`;
+                        break;
+                        
+                    case 'code':
+                        wordml += `<w:p><w:pPr><w:pStyle w:val="Code"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Courier New"/></w:rPr><w:t xml:space="preserve">${escapeXml(token.text)}</w:t></w:r></w:p>`;
+                        break;
+                        
+                    case 'table':
+                        wordml += processTableToWordML(token);
+                        break;
+                        
+                    default:
+                        if (token.text) {
+                            wordml += `<w:p><w:r><w:t>${escapeXml(token.text)}</w:t></w:r></w:p>`;
+                        }
+                }
+            }
+            
+            return wordml;
+        }
+        
+        function processInlineFormatting(text) {
+            // Process inline markdown formatting
+            let result = escapeXml(text);
+            
+            // Bold
+            result = result.replace(/\*\*(.*?)\*\*/g, '</w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>$1</w:t></w:r><w:r><w:t>');
+            
+            // Italic
+            result = result.replace(/\*(.*?)\*/g, '</w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t>$1</w:t></w:r><w:r><w:t>');
+            
+            // Code
+            result = result.replace(/`(.*?)`/g, '</w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Courier New"/></w:rPr><w:t>$1</w:t></w:r><w:r><w:t>');
+            
+            return result;
+        }
+        
+        function processListToWordML(listToken) {
+            let wordml = '';
+            const isOrdered = listToken.ordered;
+            
+            for (let i = 0; i < listToken.items.length; i++) {
+                const item = listToken.items[i];
+                const numId = isOrdered ? 1 : 2; // Different numbering for ordered/unordered
+                
+                wordml += `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="${numId}"/></w:numPr></w:pPr><w:r><w:t>${escapeXml(item.text)}</w:t></w:r></w:p>`;
+            }
+            
+            return wordml;
+        }
+        
+        function processTableToWordML(tableToken) {
+            let wordml = '<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="0" w:type="auto"/></w:tblPr>';
+            
+            // Header row
+            if (tableToken.header && tableToken.header.length > 0) {
+                wordml += '<w:tr>';
+                for (const cell of tableToken.header) {
+                    wordml += `<w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="D9D9D9"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${escapeXml(cell.text)}</w:t></w:r></w:p></w:tc>`;
+                }
+                wordml += '</w:tr>';
+            }
+            
+            // Data rows
+            for (const row of tableToken.rows) {
+                wordml += '<w:tr>';
+                for (const cell of row) {
+                    wordml += `<w:tc><w:p><w:r><w:t>${escapeXml(cell.text)}</w:t></w:r></w:p></w:tc>`;
+                }
+                wordml += '</w:tr>';
+            }
+            
+            wordml += '</w:tbl>';
+            return wordml;
+        }
+        
+        function escapeXml(text) {
+            return text.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&apos;');
+        }
+        
+        async function createDocxFromWordML(wordmlContent) {
+            const zip = new JSZip();
+            
+            // Add all required DOCX structure files
+            zip.file('[Content_Types].xml', getContentTypesXml());
+            zip.file('_rels/.rels', getRelsXml());
+            zip.file('word/_rels/document.xml.rels', getDocumentRelsXml());
+            zip.file('word/styles.xml', getStylesXml());
+            zip.file('word/numbering.xml', getNumberingXml());
+            zip.file('word/document.xml', getDocumentXml(wordmlContent));
+            
+            return zip.generateAsync({type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+        }
+        
+        function getContentTypesXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+    <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+    <Default Extension="xml" ContentType="application/xml"/>
+    <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+    <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+    <Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+</Types>`;
+        }
+        
+        function getRelsXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+        }
+        
+        function getDocumentRelsXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+    <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>
+</Relationships>`;
+        }
+        
+        function getStylesXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+    <w:style w:type="paragraph" w:styleId="Normal">
+        <w:name w:val="Normal"/>
+        <w:qFormat/>
+    </w:style>
+    <w:style w:type="paragraph" w:styleId="Heading1">
+        <w:name w:val="heading 1"/>
+        <w:basedOn w:val="Normal"/>
+        <w:pPr>
+            <w:spacing w:before="240" w:after="120"/>
+        </w:pPr>
+        <w:rPr>
+            <w:b/>
+            <w:sz w:val="32"/>
+        </w:rPr>
+    </w:style>
+    <w:style w:type="paragraph" w:styleId="Heading2">
+        <w:name w:val="heading 2"/>
+        <w:basedOn w:val="Normal"/>
+        <w:rPr>
+            <w:b/>
+            <w:sz w:val="26"/>
+        </w:rPr>
+    </w:style>
+</w:styles>`;
+        }
+        
+        function getNumberingXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+    <w:abstractNum w:abstractNumId="0">
+        <w:lvl w:ilvl="0">
+            <w:numFmt w:val="decimal"/>
+            <w:lvlText w:val="%1."/>
+        </w:lvl>
+    </w:abstractNum>
+    <w:abstractNum w:abstractNumId="1">
+        <w:lvl w:ilvl="0">
+            <w:numFmt w:val="bullet"/>
+            <w:lvlText w:val="•"/>
+        </w:lvl>
+    </w:abstractNum>
+    <w:num w:numId="1">
+        <w:abstractNumId w:val="0"/>
+    </w:num>
+    <w:num w:numId="2">
+        <w:abstractNumId w:val="1"/>
+    </w:num>
+</w:numbering>`;
+        }
+        
+        function getDocumentXml(content) {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+    <w:body>
+        ${content}
+    </w:body>
+</w:document>`;
+        }
+    </script>
+</body>
+</html>

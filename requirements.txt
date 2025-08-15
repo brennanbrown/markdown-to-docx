@@ -2,3 +2,4 @@
 # Install with: pip install -r requirements.txt
 
 pypandoc>=1.10,<2.0
+flask>=2.0.0,<3.0.0
