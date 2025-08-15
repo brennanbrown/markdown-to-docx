@@ -1,0 +1,4 @@
+# Requirements for Markdown to DOCX Converter
+# Install with: pip install -r requirements.txt
+
+pypandoc>=1.10,<2.0
