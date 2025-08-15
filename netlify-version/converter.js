@@ -466,8 +466,17 @@ class MarkdownConverter {
         const segments = [];
         let currentIndex = 0;
         
+        // Debug the input text
+        if (text.includes('code')) {
+            console.log('DEBUG parseMarkdownSegments input text:', text);
+        }
+        
         // First, handle escaped backticks by temporarily replacing them
         text = text.replace(/\\`/g, '§ESCAPED_BACKTICK§');
+        
+        if (text.includes('code')) {
+            console.log('DEBUG after escaped backtick replacement:', text);
+        }
         
         // Define patterns for different markdown syntax
         const patterns = [
