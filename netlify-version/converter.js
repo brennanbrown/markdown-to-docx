@@ -272,7 +272,7 @@ class MarkdownConverter {
         if (!text) return '';
         
         // First restore any escaped backticks
-        text = text.replace(/§ESCAPED_BACKTICK§/g, '`');
+        text = text.replace(/__ESCAPED_BACKTICK_PLACEHOLDER__/g, '`');
         
         if (text.includes(']]>')) {
             return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -472,7 +472,7 @@ class MarkdownConverter {
         }
         
         // First, handle escaped backticks by temporarily replacing them
-        text = text.replace(/\\`/g, '§ESCAPED_BACKTICK§');
+        text = text.replace(/\\`/g, '__ESCAPED_BACKTICK_PLACEHOLDER__');
         
         if (text.includes('code')) {
             console.log('DEBUG after escaped backtick replacement:', text);
@@ -559,7 +559,7 @@ class MarkdownConverter {
         // Restore escaped backticks in all segments
         for (const segment of segments) {
             if (segment.text) {
-                segment.text = segment.text.replace(/§ESCAPED_BACKTICK§/g, '`');
+                segment.text = segment.text.replace(/__ESCAPED_BACKTICK_PLACEHOLDER__/g, '`');
             }
         }
         
