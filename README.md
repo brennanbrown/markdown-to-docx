@@ -1,6 +1,21 @@
 # Markdown to DOCX Converter
 
-A Python script that batch converts markdown files to Microsoft Word format while preserving folder structure and formatting.
+Convert your markdown files to Microsoft Word format instantly! 
+
+## 🌐 **Easy Web Version (Recommended)**
+
+**👉 Just visit: [md-to-doc.netlify.app](https://md-to-doc.netlify.app)**
+
+- ✅ **No installation required** - works in any browser
+- ✅ **100% private** - files never leave your device  
+- ✅ **Instant conversion** - drag, drop, download
+- ✅ **Mobile friendly** - works on phones and tablets
+
+---
+
+## 🛠️ **Technical Versions** 
+
+For developers or advanced users who want to run locally:
 
 ## ✨ Features
 
@@ -195,3 +210,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Made with ❤️ for the markdown community**
 
 *If this tool helped you, please consider giving it a ⭐ on GitHub!*
+
+## 🔗 **Links**
+
+- **🌐 Live Web App:** [md-to-doc.netlify.app](https://md-to-doc.netlify.app)
+- **📦 Source Code:** [github.com/brennanbrown/markdown-to-docx](https://github.com/brennanbrown/markdown-to-docx)  
+- **👨‍💻 Creator:** [brennanbrown.ca](https://brennanbrown.ca)
