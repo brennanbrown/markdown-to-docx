@@ -201,8 +201,11 @@ class MarkdownConverter {
                 case 'heading':
                     const headingLevel = Math.min(token.depth, 6); // Limit to H6
                     const headingStyle = `Heading${headingLevel}`;
-                    const cleanText = token.text ? token.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
-                    wordML += `<w:p><w:pPr><w:pStyle w:val="${headingStyle}"/></w:pPr><w:r><w:t xml:space="preserve">${cleanText}</w:t></w:r></w:p>`;
+                    const headingText = token.text || '';
+                    const textContent = headingText.includes(']]>') ? 
+                        headingText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : 
+                        `<![CDATA[${headingText}]]>`;
+                    wordML += `<w:p><w:pPr><w:pStyle w:val="${headingStyle}"/></w:pPr><w:r><w:t xml:space="preserve">${textContent}</w:t></w:r></w:p>`;
                     break;
                     
                 case 'paragraph':
@@ -214,16 +217,21 @@ class MarkdownConverter {
                     break;
                     
                 case 'blockquote':
-                    const cleanQuoteText = token.text ? token.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
-                    wordML += `<w:p><w:pPr><w:pStyle w:val="Quote"/><w:ind w:left="720"/></w:pPr><w:r><w:t xml:space="preserve">${cleanQuoteText}</w:t></w:r></w:p>`;
+                    const quoteText = token.text || '';
+                    const quoteContent = quoteText.includes(']]>') ? 
+                        quoteText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : 
+                        `<![CDATA[${quoteText}]]>`;
+                    wordML += `<w:p><w:pPr><w:pStyle w:val="Quote"/><w:ind w:left="720"/></w:pPr><w:r><w:t xml:space="preserve">${quoteContent}</w:t></w:r></w:p>`;
                     break;
                     
                 case 'code':
                     // Code block
                     const codeLines = token.text.split('\n');
                     for (const line of codeLines) {
-                        const cleanCodeLine = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        wordML += `<w:p><w:pPr><w:pStyle w:val="Code"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${cleanCodeLine}</w:t></w:r></w:p>`;
+                        const codeContent = line.includes(']]>') ? 
+                            line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : 
+                            `<![CDATA[${line}]]>`;
+                        wordML += `<w:p><w:pPr><w:pStyle w:val="Code"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${codeContent}</w:t></w:r></w:p>`;
                     }
                     break;
                     
@@ -239,8 +247,11 @@ class MarkdownConverter {
                     
                 default:
                     if (token.text) {
-                        const cleanDefaultText = token.text ? token.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
-                        wordML += `<w:p><w:r><w:t xml:space="preserve">${cleanDefaultText}</w:t></w:r></w:p>`;
+                        const defaultText = token.text || '';
+                        const defaultContent = defaultText.includes(']]>') ? 
+                            defaultText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : 
+                            `<![CDATA[${defaultText}]]>`;
+                        wordML += `<w:p><w:r><w:t xml:space="preserve">${defaultContent}</w:t></w:r></w:p>`;
                     }
             }
         }
@@ -266,32 +277,39 @@ class MarkdownConverter {
     }
 
     processInlineToken(token) {
-        const cleanText = (text) => text ? text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+        const wrapWithCDATA = (text) => {
+            if (!text) return '';
+            // Use CDATA unless the text contains ]]> which would break it
+            if (text.includes(']]>')) {
+                return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            }
+            return `<![CDATA[${text}]]>`;
+        };
         
         switch (token.type) {
             case 'text':
-                return `<w:r><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
+                return `<w:r><w:t xml:space="preserve">${wrapWithCDATA(token.text)}</w:t></w:r>`;
                 
             case 'strong':
-                return `<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
+                return `<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">${wrapWithCDATA(token.text)}</w:t></w:r>`;
                 
             case 'em':
-                return `<w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
+                return `<w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve">${wrapWithCDATA(token.text)}</w:t></w:r>`;
                 
             case 'codespan':
-                return `<w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:shd w:val="clear" w:color="auto" w:fill="F5F5F5"/></w:rPr><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
+                return `<w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:shd w:val="clear" w:color="auto" w:fill="F5F5F5"/></w:rPr><w:t xml:space="preserve">${wrapWithCDATA(token.text)}</w:t></w:r>`;
                 
             case 'del':
-                return `<w:r><w:rPr><w:strike/></w:rPr><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
+                return `<w:r><w:rPr><w:strike/></w:rPr><w:t xml:space="preserve">${wrapWithCDATA(token.text)}</w:t></w:r>`;
                 
             case 'link':
-                return `<w:r><w:rPr><w:color w:val="0000FF"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
+                return `<w:r><w:rPr><w:color w:val="0000FF"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${wrapWithCDATA(token.text)}</w:t></w:r>`;
                 
             case 'br':
                 return '<w:r><w:br/></w:r>';
                 
             default:
-                return `<w:r><w:t xml:space="preserve">${cleanText(token.text || '')}</w:t></w:r>`;
+                return `<w:r><w:t xml:space="preserve">${wrapWithCDATA(token.text || '')}</w:t></w:r>`;
         }
     }
 
@@ -458,10 +476,16 @@ class MarkdownConverter {
         
         const rPrTag = rPr ? `<w:rPr>${rPr}</w:rPr>` : '';
         
-        // Use xml:space="preserve" to maintain whitespace and don't escape quotes/apostrophes
-        const cleanText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        
-        return `<w:r>${rPrTag}<w:t xml:space="preserve">${cleanText}</w:t></w:r>`;
+        // Use CDATA to preserve quotes and apostrophes exactly as they are
+        // Only escape if the text contains ]]> which would break CDATA
+        if (text.includes(']]>')) {
+            // Fallback to minimal escaping for problematic content
+            const cleanText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return `<w:r>${rPrTag}<w:t xml:space="preserve">${cleanText}</w:t></w:r>`;
+        } else {
+            // Use CDATA to preserve all characters including quotes and apostrophes
+            return `<w:r>${rPrTag}<w:t xml:space="preserve"><![CDATA[${text}]]></w:t></w:r>`;
+        }
     }
 
     escapeXml(text) {
