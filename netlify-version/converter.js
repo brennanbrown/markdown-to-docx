@@ -232,21 +232,28 @@ class MarkdownConverter {
                 const formattedText = this.parseInlineMarkdown(text);
                 wordML += `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>${formattedText}</w:p>`;
             }
-            // Check for code blocks
-            else if (line.startsWith('```')) {
-                // Find the end of the code block
-                i++; // Skip the opening ```
-                let codeContent = '';
-                while (i < lines.length && !lines[i].trim().startsWith('```')) {
-                    const codeLine = lines[i];
-                    const cleanCodeLine = this.cleanTextForWord(codeLine);
-                    codeContent += `<w:p><w:pPr><w:pStyle w:val="Code"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${cleanCodeLine}</w:t></w:r></w:p>`;
-                    i++;
+            // Check for code blocks (handle both ``` and escaped \`\`\`)
+            else if (line.startsWith('```') || line.includes('\\`\\`\\`')) {
+                // If it's escaped backticks, treat as regular paragraph
+                if (line.includes('\\`\\`\\`')) {
+                    const formattedText = this.parseInlineMarkdown(line.replace(/\\`/g, '`'));
+                    wordML += `<w:p><w:pPr></w:pPr>${formattedText}</w:p>`;
+                } else {
+                    // Real code block
+                    // Find the end of the code block
+                    i++; // Skip the opening ```
+                    let codeContent = '';
+                    while (i < lines.length && !lines[i].trim().startsWith('```')) {
+                        const codeLine = lines[i];
+                        const cleanCodeLine = this.cleanTextForWord(codeLine);
+                        codeContent += `<w:p><w:pPr><w:pStyle w:val="Code"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${cleanCodeLine}</w:t></w:r></w:p>`;
+                        i++;
+                    }
+                    wordML += codeContent;
+                    // Skip the closing ```
+                    if (i < lines.length) i++;
+                    continue;
                 }
-                wordML += codeContent;
-                // Skip the closing ```
-                if (i < lines.length) i++;
-                continue;
             }
             // Regular paragraph
             else {
@@ -445,6 +452,9 @@ class MarkdownConverter {
         const segments = [];
         let currentIndex = 0;
         
+        // First, handle escaped backticks by temporarily replacing them
+        text = text.replace(/\\`/g, '§ESCAPED_BACKTICK§');
+        
         // Define patterns for different markdown syntax
         const patterns = [
             { regex: /\*\*\*(.+?)\*\*\*/g, formatting: { bold: true, italic: true } }, // Bold + Italic
@@ -454,7 +464,7 @@ class MarkdownConverter {
             { regex: /__(.+?)__/g, formatting: { bold: true } },                        // Bold (alt)
             { regex: /_(.+?)_/g, formatting: { italic: true } },                        // Italic (alt)
             { regex: /~~(.+?)~~/g, formatting: { strikethrough: true } },               // Strikethrough
-            { regex: /`(.+?)`/g, formatting: { code: true } },                          // Inline code
+            { regex: /`([^`]+)`/g, formatting: { code: true } },                        // Inline code (non-greedy, no backticks inside)
             { regex: /\[([^\]]+)\]\(([^)]+)\)/g, formatting: { link: true } }           // Links
         ];
         
@@ -521,6 +531,11 @@ class MarkdownConverter {
         // If no matches found, return the entire text as plain
         if (segments.length === 0) {
             segments.push({ text: text, formatting: {} });
+        }
+        
+        // Restore escaped backticks in all segments
+        for (const segment of segments) {
+            segment.text = segment.text.replace(/§ESCAPED_BACKTICK§/g, '`');
         }
         
         return segments;
