@@ -272,7 +272,7 @@ class MarkdownConverter {
         if (!text) return '';
         
         // First restore any escaped backticks
-        text = text.replace(/__ESCAPED_BACKTICK_PLACEHOLDER__/g, '`');
+        text = text.replace(/XESCAPEDBACKTICKX/g, '`');
         
         if (text.includes(']]>')) {
             return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -441,18 +441,8 @@ class MarkdownConverter {
     parseInlineMarkdown(text) {
         if (!text) return '<w:r><w:t></w:t></w:r>';
         
-        // Debug logging to trace the issue
-        if (text.includes('code')) {
-            console.log('DEBUG parseInlineMarkdown input:', text);
-        }
-        
         // Split text into segments, processing markdown formatting
         const segments = this.parseMarkdownSegments(text);
-        
-        if (text.includes('code')) {
-            console.log('DEBUG parseInlineMarkdown segments:', segments);
-        }
-        
         let result = '';
         
         for (const segment of segments) {
@@ -466,17 +456,8 @@ class MarkdownConverter {
         const segments = [];
         let currentIndex = 0;
         
-        // Debug the input text
-        if (text.includes('code')) {
-            console.log('DEBUG parseMarkdownSegments input text:', text);
-        }
-        
         // First, handle escaped backticks by temporarily replacing them
-        text = text.replace(/\\`/g, '__ESCAPED_BACKTICK_PLACEHOLDER__');
-        
-        if (text.includes('code')) {
-            console.log('DEBUG after escaped backtick replacement:', text);
-        }
+        text = text.replace(/\\`/g, 'XESCAPEDBACKTICKX');
         
         // Define patterns for different markdown syntax
         const patterns = [
@@ -559,7 +540,7 @@ class MarkdownConverter {
         // Restore escaped backticks in all segments
         for (const segment of segments) {
             if (segment.text) {
-                segment.text = segment.text.replace(/__ESCAPED_BACKTICK_PLACEHOLDER__/g, '`');
+                segment.text = segment.text.replace(/XESCAPEDBACKTICKX/g, '`');
             }
         }
         
