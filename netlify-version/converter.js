@@ -201,7 +201,8 @@ class MarkdownConverter {
                 case 'heading':
                     const headingLevel = Math.min(token.depth, 6); // Limit to H6
                     const headingStyle = `Heading${headingLevel}`;
-                    wordML += `<w:p><w:pPr><w:pStyle w:val="${headingStyle}"/></w:pPr><w:r><w:t>${this.escapeXml(token.text)}</w:t></w:r></w:p>`;
+                    const cleanText = token.text ? token.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+                    wordML += `<w:p><w:pPr><w:pStyle w:val="${headingStyle}"/></w:pPr><w:r><w:t xml:space="preserve">${cleanText}</w:t></w:r></w:p>`;
                     break;
                     
                 case 'paragraph':
@@ -213,14 +214,16 @@ class MarkdownConverter {
                     break;
                     
                 case 'blockquote':
-                    wordML += `<w:p><w:pPr><w:pStyle w:val="Quote"/><w:ind w:left="720"/></w:pPr><w:r><w:t>${this.escapeXml(token.text)}</w:t></w:r></w:p>`;
+                    const cleanQuoteText = token.text ? token.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+                    wordML += `<w:p><w:pPr><w:pStyle w:val="Quote"/><w:ind w:left="720"/></w:pPr><w:r><w:t xml:space="preserve">${cleanQuoteText}</w:t></w:r></w:p>`;
                     break;
                     
                 case 'code':
                     // Code block
                     const codeLines = token.text.split('\n');
                     for (const line of codeLines) {
-                        wordML += `<w:p><w:pPr><w:pStyle w:val="Code"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${this.escapeXml(line)}</w:t></w:r></w:p>`;
+                        const cleanCodeLine = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        wordML += `<w:p><w:pPr><w:pStyle w:val="Code"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${cleanCodeLine}</w:t></w:r></w:p>`;
                     }
                     break;
                     
@@ -236,7 +239,8 @@ class MarkdownConverter {
                     
                 default:
                     if (token.text) {
-                        wordML += `<w:p><w:r><w:t>${this.escapeXml(token.text)}</w:t></w:r></w:p>`;
+                        const cleanDefaultText = token.text ? token.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+                        wordML += `<w:p><w:r><w:t xml:space="preserve">${cleanDefaultText}</w:t></w:r></w:p>`;
                     }
             }
         }
@@ -262,30 +266,32 @@ class MarkdownConverter {
     }
 
     processInlineToken(token) {
+        const cleanText = (text) => text ? text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+        
         switch (token.type) {
             case 'text':
-                return `<w:r><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                return `<w:r><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
                 
             case 'strong':
-                return `<w:r><w:rPr><w:b/></w:rPr><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                return `<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
                 
             case 'em':
-                return `<w:r><w:rPr><w:i/></w:rPr><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                return `<w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
                 
             case 'codespan':
-                return `<w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:shd w:val="clear" w:color="auto" w:fill="F5F5F5"/></w:rPr><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                return `<w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:shd w:val="clear" w:color="auto" w:fill="F5F5F5"/></w:rPr><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
                 
             case 'del':
-                return `<w:r><w:rPr><w:strike/></w:rPr><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                return `<w:r><w:rPr><w:strike/></w:rPr><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
                 
             case 'link':
-                return `<w:r><w:rPr><w:color w:val="0000FF"/><w:u w:val="single"/></w:rPr><w:t>${this.escapeXml(token.text)}</w:t></w:r>`;
+                return `<w:r><w:rPr><w:color w:val="0000FF"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${cleanText(token.text)}</w:t></w:r>`;
                 
             case 'br':
                 return '<w:r><w:br/></w:r>';
                 
             default:
-                return `<w:r><w:t>${this.escapeXml(token.text || '')}</w:t></w:r>`;
+                return `<w:r><w:t xml:space="preserve">${cleanText(token.text || '')}</w:t></w:r>`;
         }
     }
 
@@ -451,9 +457,11 @@ class MarkdownConverter {
         }
         
         const rPrTag = rPr ? `<w:rPr>${rPr}</w:rPr>` : '';
-        const escapedText = this.escapeXml(text);
         
-        return `<w:r>${rPrTag}<w:t>${escapedText}</w:t></w:r>`;
+        // Use xml:space="preserve" to maintain whitespace and don't escape quotes/apostrophes
+        const cleanText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        return `<w:r>${rPrTag}<w:t xml:space="preserve">${cleanText}</w:t></w:r>`;
     }
 
     escapeXml(text) {
