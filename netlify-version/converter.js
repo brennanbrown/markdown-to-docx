@@ -161,11 +161,13 @@ class MarkdownConverter {
     }
 
     async convertMarkdownToDocx(markdownText, fileName) {
-        // Convert markdown to HTML
-        const html = marked.parse(markdownText);
+        // Debug: Let's see what the tokens contain
+        console.log('DEBUG: Raw markdown text:', markdownText);
+        const testTokens = marked.lexer(markdownText);
+        console.log('DEBUG: Tokens from marked.lexer:', testTokens);
         
-        // Convert HTML to simple Word XML
-        const docContent = this.convertHtmlToWordML(html);
+        // Convert markdown directly to Word XML (skip HTML conversion)
+        const docContent = this.convertHtmlToWordML('');
         
         // Create DOCX package using JSZip
         const zip = new JSZip();
