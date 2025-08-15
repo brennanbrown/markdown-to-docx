@@ -1,15 +1,17 @@
 # Markdown to DOCX Converter
 
-Convert your markdown files to Microsoft Word format instantly! 
+Convert markdown files to Microsoft Word format while preserving formatting and structure.
 
-## 🌐 **Easy Web Version (Recommended)**
+![Markdown to DOCX Converter](screenshot.png)
 
-**👉 Just visit: [md-to-doc.netlify.app](https://md-to-doc.netlify.app)**
+## 🌐 **Web Version (Recommended)**
 
-- ✅ **No installation required** - works in any browser
-- ✅ **100% private** - files never leave your device  
-- ✅ **Instant conversion** - drag, drop, download
-- ✅ **Mobile friendly** - works on phones and tablets
+**Visit: [md-to-doc.netlify.app](https://md-to-doc.netlify.app)**
+
+- No installation required - works in any browser
+- Files processed locally - nothing uploaded to servers
+- Preserves markdown formatting in Word documents
+- Cross-platform compatibility
 
 ---
 
@@ -29,27 +31,24 @@ For developers or advanced users who want to run locally:
 
 ## 🚀 Quick Start
 
-### 🎯 SUPER EASY - No Technical Knowledge Required!
-
-**STEP 1: One-Click Setup**
+**Setup:**
 1. Download this project
-2. Double-click `EASY_SETUP.py` 
-3. Follow the simple instructions
-4. Done! 🎉
+2. Run `EASY_SETUP.py` for automatic dependency installation
+3. Follow the setup instructions
 
-**STEP 2: Choose Your Favorite Way to Convert**
+**Usage Options:**
 
-#### 🖱️ Option A: Simple Click & Convert (Recommended)
-- Double-click `convert_drag_drop.py`
-- Enter your folder path when asked
-- Watch the magic happen!
+#### Simple Interface
+- Run `convert_drag_drop.py`
+- Enter your folder path when prompted
+- Files will be converted with preserved formatting
 
-#### 🌐 Option B: Web Interface  
-- Double-click `markdown_converter_web.py`
-- Open your browser to `http://localhost:5000`
-- Drag & drop files in the browser!
+#### Local Web Interface  
+- Run `markdown_converter_web.py`
+- Open your browser to `http://localhost:8080`
+- Use the web interface for file conversion
 
-#### 💻 Option C: Command Line (For Tech-Savvy Users)
+#### Command Line
 ```bash
 python3 markdown_to_docx_converter.py -i your_folder
 ```
@@ -207,9 +206,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ for the markdown community**
+**Open source project for the markdown community**
 
-*If this tool helped you, please consider giving it a ⭐ on GitHub!*
+*If this tool is helpful, please consider starring the repository.*
 
 ## 🔗 **Links**
 
