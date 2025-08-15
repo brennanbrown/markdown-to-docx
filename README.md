@@ -29,7 +29,7 @@ A Python script that batch converts markdown files to Microsoft Word format whil
 - Enter your folder path when asked
 - Watch the magic happen!
 
-#### 🌐 Option B: Beautiful Web Interface  
+#### 🌐 Option B: Web Interface  
 - Double-click `markdown_converter_web.py`
 - Open your browser to `http://localhost:5000`
 - Drag & drop files in the browser!
