@@ -460,9 +460,9 @@ class MarkdownConverter {
         if (!text) return '';
         return text.replace(/&/g, '&amp;')
                   .replace(/</g, '&lt;')
-                  .replace(/>/g, '&gt;')
-                  .replace(/"/g, '&quot;')
-                  .replace(/'/g, '&apos;');
+                  .replace(/>/g, '&gt;');
+        // Note: Don't escape quotes and apostrophes for Word documents
+        // Word handles these characters fine in <w:t> elements
     }
 
     downloadFile(blob, fileName) {
