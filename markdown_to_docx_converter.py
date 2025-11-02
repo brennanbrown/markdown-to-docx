@@ -13,7 +13,7 @@ Features:
 - Detailed progress reporting
 - Error handling with graceful continuation
 
-Author: Emma's Notes System
+Author: Brennan Kenneth Brown
 License: MIT
 Repository: https://github.com/[your-username]/markdown-to-docx-converter
 """
